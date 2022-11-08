@@ -1,4 +1,4 @@
-import { Node, NodeProps, Edge } from 'reactflow';
+import { Node, NodeProps, Edge } from 'reactflow'
 
 export const nodes: Node[] = [
     {
@@ -20,7 +20,7 @@ export const nodes: Node[] = [
         data: { category: 'raw-data' },
         position: { x: 0, y: 0 },
     },
-];
+]
 
 export const edges: Edge[] = [
     {
@@ -33,4 +33,4 @@ export const edges: Edge[] = [
         source: '1',
         target: '3',
     },
-];
+]

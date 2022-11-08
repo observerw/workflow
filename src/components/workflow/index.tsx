@@ -1,16 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 import ReactFlow, {
-    useReactFlow,
-    Node,
-    Edge,
     useNodesState,
     useEdgesState,
     Background,
     BackgroundVariant,
     NodeTypes,
     Controls,
-} from 'reactflow';
-import { Direction, useDAGLayout } from '../../utils/useDAGLayout';
+} from 'reactflow'
+import { Direction, useDAGLayout } from '../../utils/useDAGLayout'
 import DataNode from '@/components/node/data'
 import OperNode from '@/components/node/operation'
 import process, { rawData } from '@/utils/process'
@@ -23,25 +20,13 @@ const nodeTypes: NodeTypes = {
 const { nodes: initNodes, edges: initEdges } = process(rawData)
 
 export type WorkflowProps = {
-    direction?: Direction;
+    direction?: Direction
 }
 export default ({ direction = 'LR' }: WorkflowProps) => {
-    const { fitView } = useReactFlow();
-    // useAutoLayout({ direction });
+    useDAGLayout({ direction })
 
-    useDAGLayout({ direction });
-
-    useEffect(() => {
-        // 去水印
-        document.querySelector('.react-flow__panel')?.remove()
-    }, [])
-
-    const [nodes, _setNodes, onNodesChange] = useNodesState(initNodes);
-    const [edges, _setEdges, onEdgesChange] = useEdgesState(initEdges);
-
-    useEffect(() => {
-        fitView({ duration: 400 });
-    }, [fitView]);
+    const [nodes, _setNodes, onNodesChange] = useNodesState(initNodes)
+    const [edges, _setEdges, onEdgesChange] = useEdgesState(initEdges)
 
     return <div className='w-full h-full'>
         <ReactFlow
@@ -50,10 +35,10 @@ export default ({ direction = 'LR' }: WorkflowProps) => {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             fitView
-            minZoom={0.5}
-            maxZoom={3}
-            nodeTypes={nodeTypes}
-        >
+            // minZoom={0.5}
+            // maxZoom={3}
+            proOptions={{ hideAttribution: true }}
+            nodeTypes={nodeTypes}>
             <Controls />
             <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
