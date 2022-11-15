@@ -1,16 +1,7 @@
-import { useEffect } from 'react'
-import ReactFlow, {
-    useNodesState,
-    useEdgesState,
-    Background,
-    BackgroundVariant,
-    NodeTypes,
-    Controls,
-} from 'reactflow'
-import { Direction, useDAGLayout } from '../../utils/useDAGLayout'
-import DataNode from '@/components/node/data'
-import OperNode from '@/components/node/operation'
+import { DataNode, OperNode } from '@/components/node'
 import process, { rawData } from '@/utils/process'
+import ReactFlow, { Background, BackgroundVariant, Controls, NodeTypes, useEdgesState, useNodesState } from 'reactflow'
+import { Direction, useDAGLayout } from '../../utils/useDAGLayout'
 
 const nodeTypes: NodeTypes = {
     data: DataNode,

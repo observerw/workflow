@@ -1,29 +1,40 @@
 import { Edge, Node } from "reactflow"
 
-// const HEIGHT = 100
-// const NAME_HEIGHT = 1.5 * HEIGHT
-// const WIDTH = 300
-// const MARGIN = 20
+/// 边的 ID，由起点 ID 和终点 ID 组成
+export const EdgeID = (source: string, target: string) => `${source}->${target}`
 
+/// 节点属性的 ID
+/// 对于数据节点，ID 由数据本身的 ID 和属性名组成
+/// 对于操作节点，ID 由操作节点的 ID 和映射后的属性名组成
+export const AttrID = (id: string, name: string) => `${id}_${name}`
+
+/// 数据节点包含的类别
 export type DataCategory = 'raw-data' | 'data-collection' | 'structured-data' | 'model'
+/// 操作节点包含的类别
 export type OperCategory = 'data-process' | 'algorithm'
 export type NodeCategory = DataCategory | OperCategory
 
+type EdgeCategory = 'node' | 'attr'
+
+/// 所有种类节点都有的基础数据
 export type NodeData = {
     name: string,
     info?: any,
 }
 
+/// 数据节点特有的数据
 export type DataNodeData = NodeData & {
     category: DataCategory,
     stored_data?: Record<string, any>
 }
 
+/// 操作节点特有的数据
 export type OperNodeData = NodeData & {
     category: OperCategory,
     mapping_data?: Record<string, string>,
 }
 
+/// 由后端传入的原始节点数据
 export type RawNode = {
     id: string,
     sub: string[],
@@ -32,24 +43,27 @@ export type RawNode = {
         ({ type: 'operation' } & OperNodeData)
     )
 
+/// React flow 的节点类型
 export type WorkflowNode = Node<DataNodeData | OperNodeData>
 
-export type WorkflowEdge = Edge
+/// React flow 的边类型
+export type WorkflowEdge = Edge<{ category?: EdgeCategory }>
 
+/// 根据原始节点数据获取相应类型的节点数据
 const getData = (rawNode: RawNode) => {
-    const { name, type } = rawNode
+    const { name, type, info } = rawNode
     switch (type) {
         case 'data':
             const { stored_data, category: dataCategory } = rawNode
-            return { name, category: dataCategory, stored_data }
+            return { name, info, category: dataCategory, stored_data } as DataNodeData
         case 'operation':
             const { mapping_data, category: operCategory } = rawNode
-            return { name, category: operCategory, mapping_data }
+            return { name, info, category: operCategory, mapping_data } as OperNodeData
     }
 }
 
 const processRawNode = (rawNode: RawNode): WorkflowNode => {
-    const { id, type, sub } = rawNode
+    const { id, type } = rawNode
     return {
         id,
         type,
@@ -64,44 +78,51 @@ export default (rawNodes: RawNode[]): { nodes: WorkflowNode[], edges: WorkflowEd
     const lookup = new Map(rawNodes.map(node => [node.id, node]))
     const edges: WorkflowEdge[] = []
 
-    const handleDataNode = (rawNode: RawNode & { type: 'data' }): [WorkflowNode[], WorkflowEdge[]] => {
-        const nodes: WorkflowNode[] = [processRawNode(rawNode)]
-        const edges: WorkflowEdge[] = []
-
-        const { id: parentID, type, stored_data, category, sub } = rawNode
-
-        for (const [i, [key, value]] of Object.entries(stored_data ?? {}).entries()) {
-            // nodes.push({
-            //     id: `${parentID}_${key}`,
-            //     position
-            // })
-        }
-
-        const keys = new Set(Object.keys(stored_data || {}))
+    for (const rawNode of rawNodes) {
+        const { id: rawID, sub, type } = rawNode
+        nodes.push(processRawNode(rawNode))
+        // 数据节点取 stored_data 的 key，操作节点取 mapping_data 的 value
+        const sourceAttrs = new Set(type === 'data' ? Object.keys(rawNode.stored_data ?? {}) : Object.values(rawNode.mapping_data ?? {}))
 
         for (const subID of sub) {
-            const subNode = lookup.get(subID)
-            if (!subNode) { continue }
-            switch (subNode.type) {
-                case 'operation':
-                    const { mapping_data } = subNode
-                    const operKeys = new Set(Object.keys(mapping_data || {}))
+            let attrConnected = false
 
-                    break
+
+            const node = lookup.get(subID)
+            if (node === undefined) { throw new Error(`invalid sub node: ${subID}`) }
+
+            const { id: subNodeID, type } = node
+            const data = (type === 'data' ? node.stored_data : node.mapping_data)
+            if (data !== undefined && Object.keys(data).length !== 0) {
+                const targetAttrs = new Set(Object.keys(data))
+
+                for (const sourceAttr of sourceAttrs.values()) {
+                    if (targetAttrs.has(sourceAttr)) {
+                        attrConnected = true
+
+                        const sourceID = AttrID(rawID, sourceAttr)
+                        const targetID = AttrID(subNodeID, sourceAttr)
+                        edges.push({
+                            id: EdgeID(sourceID, targetID),
+                            source: rawID,
+                            sourceHandle: sourceID,
+                            target: subNodeID,
+                            targetHandle: targetID,
+                            data: { category: 'attr' }
+                        })
+                    }
+                }
             }
+            edges.push({
+                id: EdgeID(rawID, subID),
+                source: rawID,
+                sourceHandle: rawID,
+                target: subID,
+                targetHandle: subID,
+                data: { category: 'node' },
+                hidden: attrConnected,
+            })
         }
-
-        return [nodes, edges]
-    }
-
-    for (const rawNode of rawNodes) {
-        const { id, sub } = rawNode
-        nodes.push(processRawNode(rawNode))
-        sub.map(subId => ({
-            id: `${id}->${subId}`,
-            source: id,
-            target: subId
-        })).forEach(edge => edges.push(edge))
     }
 
     return { nodes, edges }
@@ -152,7 +173,6 @@ export const rawData: RawNode[] = [
         sub: ['9'],
         type: 'data',
         stored_data: {
-            
         }
     },
     {
@@ -163,12 +183,12 @@ export const rawData: RawNode[] = [
         sub: ['9'],
         type: 'data',
         stored_data: {
-            '114514': '1919810',
-            '1919810': '114514',
-            '1': '2',
-            '2': '1',
-            '3': '4',
-            '4': '3',
+            '字段1': '值1',
+            '字段2': '值2',
+            '字段3': '值3',
+            '字段4': '值4',
+            '字段5': '值5',
+            '字段6': '值6',
         }
     },
     {
@@ -196,7 +216,9 @@ export const rawData: RawNode[] = [
         // pre: [],
         sub: ['11'],
         type: 'operation',
-        mapping_data: {}
+        mapping_data: {
+            '字段1': '字段1-1',
+        }
     },
     {
         id: '10',
@@ -214,7 +236,9 @@ export const rawData: RawNode[] = [
         // pre: [],
         sub: ['13'],
         type: 'operation',
-        mapping_data: {}
+        mapping_data: {
+            '字段1-1': '字段1-2',
+        }
     },
     {
         id: '12',
@@ -232,7 +256,9 @@ export const rawData: RawNode[] = [
         // pre: [],
         sub: ['15', '16'],
         type: 'data',
-        stored_data: {}
+        stored_data: {
+            '字段1-2': '值1-2'
+        }
     },
     {
         id: '14',
